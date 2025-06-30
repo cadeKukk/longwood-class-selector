@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct longwood_class_selectorApp: App {
+    // Create the view model at the app level to avoid redundant data loading
+    @StateObject private var viewModel = RegistrationViewModel()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(viewModel: viewModel)
         }
     }
 }

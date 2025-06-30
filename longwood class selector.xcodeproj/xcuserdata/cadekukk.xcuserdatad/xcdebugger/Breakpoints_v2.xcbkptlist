@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "9FE4E1CC-4BC9-4B50-A65E-38F6604C6397"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "E0EE0345-79FF-4C7C-AA36-148DD93706AB"
+            shouldBeEnabled = "No"
+            condition = "cont"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "longwood class selector/Views/ScheduleView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "166"
+            endingLineNumber = "166"
+            landmarkName = "backgroundTimeGrid"
+            landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>
