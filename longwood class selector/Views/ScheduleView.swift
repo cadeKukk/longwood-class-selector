@@ -28,23 +28,39 @@ struct ScheduleView: View {
                 if let course = selectedCourse {
                     CourseDetailView(
                         course: course,
-                        isRegistered: true,
-                        isWaitlisted: false,
+                        isRegistered: viewModel.isRegistered(for: course),
+                        isWaitlisted: viewModel.isWaitlisted(for: course),
                         onRegister: {
-                            // This should never be called since the course is already registered
-                            print("⚠️ Attempted to register for a course that's already in the schedule")
+                            if viewModel.isRegistered(for: course) {
+                                print("⚠️ Attempted to register for a course that's already registered")
+                            } else if let conflictingCourse = viewModel.hasScheduleConflict(course) {
+                                print("⚠️ Schedule conflict detected with \(conflictingCourse.courseCode)")
+                            } else {
+                                viewModel.registerForCourse(course)
+                            }
                         },
                         onDrop: {
-                            print("Attempting to drop \(course.courseCode) from schedule view")
-                            viewModel.dropCourse(course)
-                            // Dismiss sheet after dropping
+                            if viewModel.isRegistered(for: course) {
+                                print("Attempting to drop \(course.courseCode) from schedule view")
+                                viewModel.dropCourse(course)
+                            } else if viewModel.isWaitlisted(for: course) {
+                                print("Attempting to remove \(course.courseCode) from waitlist")
+                                viewModel.removeFromWaitlist(course)
+                            }
+                            // Dismiss sheet after action
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                 showingCourseDetail = false
                             }
                         },
                         onWaitlist: {
-                            // This should never be called since the course is already registered
-                            print("⚠️ Attempted to add already registered course to waitlist")
+                            if !viewModel.isRegistered(for: course) && !viewModel.isWaitlisted(for: course) {
+                                viewModel.joinWaitlist(for: course)
+                            }
+                        },
+                        conflictingCourse: viewModel.hasScheduleConflict(course),
+                        onReplace: { conflictingCourse in
+                            viewModel.replaceAndRegister(dropCourse: conflictingCourse, registerCourse: course)
+                            showingCourseDetail = false
                         }
                     )
                 }
@@ -67,16 +83,28 @@ struct ScheduleView: View {
     }
     
     private var mainContentView: some View {
-        VStack(spacing: 0) {
-            // Header showing credit count
-            creditInfoHeader
-            
-            if viewModel.isLoading {
-                loadingView
-            } else if viewModel.registeredCourses.isEmpty {
-                emptyScheduleView
-            } else {
-                scheduleGridView
+        ScrollView {
+            VStack(spacing: 0) {
+                // Header showing credit count
+                creditInfoHeader
+                
+                if viewModel.isLoading {
+                    loadingView
+                } else if viewModel.registeredCourses.isEmpty && viewModel.waitlistedCourses.isEmpty {
+                    emptyScheduleView
+                } else {
+                    VStack(spacing: 0) {
+                        // Schedule grid (if there are registered courses)
+                        if !viewModel.registeredCourses.isEmpty {
+                            scheduleGridContent
+                        }
+                        
+                        // Waitlist section (if there are waitlisted courses)
+                        if !viewModel.waitlistedCourses.isEmpty {
+                            waitlistSection
+                        }
+                    }
+                }
             }
         }
     }
@@ -109,27 +137,81 @@ struct ScheduleView: View {
     
     private var scheduleGridView: some View {
         ScrollView {
-            ZStack(alignment: .topLeading) {
-                // Stable background grid - this never changes
-                VStack(spacing: 0) {
-                    dayHeaderRow
-                    backgroundTimeGrid
+            scheduleGridContent
+        }
+    }
+    
+    private var scheduleGridContent: some View {
+        ZStack(alignment: .topLeading) {
+            // Stable background grid - this never changes
+            VStack(spacing: 0) {
+                dayHeaderRow
+                backgroundTimeGrid
+            }
+            
+            // Course overlay - positioned over the stable grid with precise positioning
+            VStack(spacing: 0) {
+                // Spacer for header row
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(height: 40)
+                
+                // Course positions with precise time-based positioning
+                courseOverlayGrid
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.bottom, 16)
+    }
+    
+    private var waitlistSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Waitlist header
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Waitlisted Courses")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("\(viewModel.waitlistedCourses.count) \(viewModel.waitlistedCourses.count == 1 ? "course" : "courses") on waitlist")
+                            .font(.subheadline)
+                            .foregroundColor(LongwoodTheme.subtleText)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "person.3.sequence.fill")
+                        .font(.title2)
+                        .foregroundColor(LongwoodTheme.warning)
                 }
                 
-                // Course overlay - positioned over the stable grid with precise positioning
-                VStack(spacing: 0) {
-                    // Spacer for header row
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: 40)
-                    
-                    // Course positions with precise time-based positioning
-                    courseOverlayGrid
+                Text("You'll be notified when a spot becomes available")
+                    .font(.caption)
+                    .foregroundColor(LongwoodTheme.subtleText)
+            }
+            .padding(.horizontal, LongwoodTheme.defaultPadding)
+            .padding(.top, LongwoodTheme.defaultPadding)
+            
+            // Waitlist cards
+            LazyVStack(spacing: 8) {
+                ForEach(viewModel.waitlistedCourses) { course in
+                    WaitlistCourseCard(
+                        course: course,
+                        onRemove: {
+                            viewModel.removeFromWaitlist(course)
+                        },
+                        onViewDetails: {
+                            selectedCourse = course
+                            showingCourseDetail = true
+                        }
+                    )
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 16)
+            .padding(.horizontal, LongwoodTheme.defaultPadding)
+            .padding(.bottom, LongwoodTheme.defaultPadding)
         }
+        .background(LongwoodTheme.lightGray.opacity(0.3))
     }
     
     private var dayHeaderRow: some View {
@@ -253,7 +335,7 @@ struct ScheduleView: View {
                 .fontWeight(.bold)
                 .foregroundColor(LongwoodTheme.darkGray)
             
-            Text("You haven't registered for any classes yet.")
+            Text("You haven't registered for any classes yet. Check out the course catalog to find classes to register for.")
                 .font(.body)
                 .foregroundColor(LongwoodTheme.subtleText)
                 .multilineTextAlignment(.center)
@@ -651,6 +733,195 @@ struct CourseCell: View {
         )
         .foregroundColor(.white)
         .shadow(color: Color.black.opacity(0.1), radius: 1, x: 0, y: 1)
+    }
+}
+
+// Waitlist course card for the schedule view
+struct WaitlistCourseCard: View {
+    let course: Course
+    let onRemove: () -> Void
+    let onViewDetails: () -> Void
+    
+    @State private var showingRemoveAlert = false
+    
+    // Format meeting days for display
+    private var daysDisplay: String {
+        course.meetingDays.map { weekday in
+            switch weekday {
+            case .monday: return "M"
+            case .tuesday: return "T"
+            case .wednesday: return "W"
+            case .thursday: return "R"
+            case .friday: return "F"
+            }
+        }.joined(separator: "")
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Course header
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(course.courseCode)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text(course.title)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                // Department pill
+                Text(course.department)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(LongwoodTheme.colorForDepartment(course.department))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(LongwoodTheme.colorForDepartment(course.department).opacity(0.1))
+                    )
+            }
+            
+            // Course details
+            HStack(spacing: 12) {
+                // Time and days
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                            .foregroundColor(LongwoodTheme.subtleText)
+                        
+                        Text(course.meetingTime)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                            .font(.caption2)
+                            .foregroundColor(LongwoodTheme.subtleText)
+                        
+                        Text(daysDisplay)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                // Credits
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(course.credits)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    Text(course.credits == 1 ? "credit" : "credits")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Instructor and location
+            HStack {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.caption2)
+                        .foregroundColor(LongwoodTheme.subtleText)
+                    
+                    Text(course.instructor)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.caption2)
+                        .foregroundColor(LongwoodTheme.subtleText)
+                    
+                    Text(course.location)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            
+            // Action buttons
+            HStack(spacing: 8) {
+                Button(action: onViewDetails) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                            .font(.caption)
+                        
+                        Text("Details")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(LongwoodTheme.primaryBlue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(LongwoodTheme.primaryBlue.opacity(0.1))
+                    )
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    showingRemoveAlert = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "minus.circle")
+                            .font(.caption)
+                        
+                        Text("Leave Waitlist")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(LongwoodTheme.error)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(LongwoodTheme.error.opacity(0.1))
+                    )
+                }
+            }
+            .padding(.top, 4)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(LongwoodTheme.warning.opacity(0.3), lineWidth: 1)
+        )
+        .onTapGesture {
+            onViewDetails()
+        }
+        .alert(isPresented: $showingRemoveAlert) {
+            Alert(
+                title: Text("Leave Waitlist"),
+                message: Text("Are you sure you want to leave the waitlist for \(course.courseCode) - \(course.title)?"),
+                primaryButton: .destructive(Text("Leave Waitlist")) {
+                    onRemove()
+                },
+                secondaryButton: .cancel()
+            )
+        }
     }
 }
 

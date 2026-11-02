@@ -89,7 +89,8 @@ struct Course: Identifiable {
          hasLab: Bool = false, labMeetingTime: String? = nil, labMeetingDays: [Weekday]? = nil,
          labLocation: String? = nil) {
         
-        self.id = courseCode // Use courseCode as the stable ID
+        // Create a unique ID by combining course code, instructor, and meeting time
+        self.id = "\(courseCode)_\(instructor)_\(meetingTime)_\(location)".replacingOccurrences(of: " ", with: "_")
         self.courseCode = courseCode
         self.title = title
         self.instructor = instructor
