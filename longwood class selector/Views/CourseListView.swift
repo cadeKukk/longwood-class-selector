@@ -4,7 +4,6 @@ struct CourseListView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @EnvironmentObject private var tabController: TabController
     @State private var selectedCourse: Course?
-    @State private var isShowingDetail = false
     @State private var searchText: String = ""
     
     // Grid layout
@@ -210,13 +209,12 @@ struct CourseListView: View {
                 )
                 .onTapGesture {
                     selectedCourse = course
-                    isShowingDetail = true
                 }
             }
         }
         .padding()
-        .sheet(isPresented: $isShowingDetail, content: {
-            if let course = selectedCourse {
+        .sheet(item: $selectedCourse, content: { course in
+            Group {
                 CourseDetailView(
                     course: course,
                     isRegistered: viewModel.isRegistered(for: course),
@@ -230,25 +228,25 @@ struct CourseListView: View {
                             viewModel.registerForCourse(course)
                             print("Attempted to register for \(course.courseCode) from CourseDetail sheet")
                         }
-                        isShowingDetail = false
+                        selectedCourse = nil
                     },
                     onDrop: {
                         viewModel.dropCourse(course)
-                        isShowingDetail = false
+                        selectedCourse = nil
                     },
                     onWaitlist: {
                         viewModel.joinWaitlist(for: course)
                         print("Added \(course.courseCode) to waitlist from CourseDetail sheet")
-                        isShowingDetail = false
+                        selectedCourse = nil
                     },
                     conflictingCourse: viewModel.hasScheduleConflict(course),
                     onReplace: { conflictingCourse in
                         viewModel.replaceAndRegister(dropCourse: conflictingCourse, registerCourse: course)
                         print("Replaced \(conflictingCourse.courseCode) with \(course.courseCode) from CourseDetail sheet")
-                        isShowingDetail = false
+                        selectedCourse = nil
                     },
                     onViewSchedule: {
-                        isShowingDetail = false
+                        selectedCourse = nil
                         tabController.switchToSchedule()
                     }
                 )

@@ -3,7 +3,6 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @EnvironmentObject private var tabController: TabController
-    @State private var showingCourseDetail = false
     @State private var selectedCourse: Course?
     @State private var searchText = ""
     @State private var showToast = false
@@ -39,10 +38,11 @@ struct HomeView: View {
             // Toast notification
             toastOverlay
         }
-        .sheet(isPresented: $showingCourseDetail, onDismiss: {
-            selectedCourse = nil
-        }) {
-            if let course = selectedCourse {
+        // Presenting by item hands the tapped course to the sheet directly.
+        // With isPresented plus a separate optional, the first sheet after
+        // launch was built before the course was set and came up blank.
+        .sheet(item: $selectedCourse) { course in
+            Group {
                 CourseDetailView(
                     course: course,
                     isRegistered: viewModel.isRegistered(for: course),
@@ -74,10 +74,10 @@ struct HomeView: View {
                     onReplace: { conflictingCourse in
                         viewModel.replaceAndRegister(dropCourse: conflictingCourse, registerCourse: course)
                         showReplaceToast(droppedCourse: conflictingCourse, newCourse: course)
-                        showingCourseDetail = false
+                        selectedCourse = nil
                     },
                     onViewSchedule: {
-                        showingCourseDetail = false
+                        selectedCourse = nil
                         tabController.switchToSchedule()
                     }
                 )
@@ -190,7 +190,6 @@ struct HomeView: View {
                 )
                 .onTapGesture {
                     selectedCourse = course
-                    showingCourseDetail = true
                 }
             }
         }
