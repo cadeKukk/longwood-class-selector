@@ -26,19 +26,12 @@ Select the `longwood class selector` scheme and an iPhone simulator, then run. T
 ## Demo walkthrough
 
 1. Search for `ACCT 240` and tap Register on its card. Do the same for `ACCT 242`.
-2. Search for `CMSC 140`, a full course. Tap the card to open its details, then Join Waitlist.
+2. Search for `CMSC 140`, a full course. Tap Join Waitlist on its card, or open the card and join from its details.
 3. Open Schedule to see both registered courses in the weekly grid; scroll down for the waitlisted one. Tap a course there to drop it, leave the waitlist, or replace a course it conflicts with.
 4. Return to Home and use Open Courses, a level, or a department filter to narrow the catalog. Courses that overlap your schedule are marked Time Conflict.
 5. Open Profile to inspect the sample student and registration summary.
 
 The catalog is 271 sample courses across 50 departments, all compiled into the app. Registrations live in memory and are gone when the app restarts. Pull to refresh simulates enrollment changes; it does not fetch the university's live catalog.
-
-## Known issues
-
-Found while capturing the screens above:
-
-- The first time you tap a course after launch, on the catalog or the schedule, the details sheet opens blank. Swipe it down and tap again.
-- On a full course's catalog card the Join Waitlist button is disabled. Joining works from the course's details sheet.
 
 ## Source map
 

@@ -3,7 +3,9 @@ import SwiftUI
 struct ScheduleView: View {
     @ObservedObject var viewModel: RegistrationViewModel
     @State private var selectedCourse: Course? = nil
-    @State private var showingCourseDetail = false
+    // The course whose details sheet is open. Kept apart from selectedCourse,
+    // which the Remove Course alert also uses.
+    @State private var detailCourse: Course? = nil
     @State private var showingRemoveAlert = false
     
     private let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -21,11 +23,11 @@ struct ScheduleView: View {
         mainContentView
             .navigationTitle("My Schedule")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showingCourseDetail, onDismiss: {
+            .sheet(item: $detailCourse, onDismiss: {
                 // Force refresh when sheet is dismissed to ensure view updates
                 viewModel.objectWillChange.send()
-            }) {
-                if let course = selectedCourse {
+            }) { course in
+                Group {
                     CourseDetailView(
                         course: course,
                         isRegistered: viewModel.isRegistered(for: course),
@@ -49,7 +51,7 @@ struct ScheduleView: View {
                             }
                             // Dismiss sheet after action
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                showingCourseDetail = false
+                                detailCourse = nil
                             }
                         },
                         onWaitlist: {
@@ -60,7 +62,7 @@ struct ScheduleView: View {
                         conflictingCourse: viewModel.hasScheduleConflict(course),
                         onReplace: { conflictingCourse in
                             viewModel.replaceAndRegister(dropCourse: conflictingCourse, registerCourse: course)
-                            showingCourseDetail = false
+                            detailCourse = nil
                         }
                     )
                 }
@@ -202,8 +204,7 @@ struct ScheduleView: View {
                             viewModel.removeFromWaitlist(course)
                         },
                         onViewDetails: {
-                            selectedCourse = course
-                            showingCourseDetail = true
+                            detailCourse = course
                         }
                     )
                 }
@@ -302,13 +303,11 @@ struct ScheduleView: View {
                 .offset(y: position)
                 .allowsHitTesting(true)
                 .onTapGesture {
-                    selectedCourse = entry.course
-                    showingCourseDetail = true
+                    detailCourse = entry.course
                 }
                 .contextMenu {
                     Button(action: {
-                        selectedCourse = entry.course
-                        showingCourseDetail = true
+                        detailCourse = entry.course
                     }) {
                         Label("View Details", systemImage: "info.circle")
                     }

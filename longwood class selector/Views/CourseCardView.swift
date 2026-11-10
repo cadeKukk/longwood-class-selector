@@ -268,7 +268,7 @@ struct CourseCardView: View {
                 .cornerRadius(LongwoodTheme.cornerRadius)
                 .animation(.spring(), value: buttonColor)
             }
-            .disabled((course.availableSeats == 0 && !isRegistered && !isWaitlisted) || (hasTimeConflict && !isRegistered && !isWaitlisted && onReplace == nil))
+            .disabled((course.availableSeats == 0 && !course.isWaitlistAvailable && !isRegistered && !isWaitlisted) || (hasTimeConflict && !isRegistered && !isWaitlisted && onReplace == nil))
             .alert(isPresented: $showingActionAlert) {
                 if hasTimeConflict && !isRegistered && !isWaitlisted && conflictingCourse != nil {
                     return Alert(
